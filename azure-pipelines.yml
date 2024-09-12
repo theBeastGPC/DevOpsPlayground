@@ -16,34 +16,22 @@ variables:
   ARM_TENANT_ID: $(tenantId)
 
 steps:
-- task: UseAzureCLI@2
-  inputs:
-    azureSubscription: '<Azure service connection>'
-    scriptType: 'bash'
-    scriptLocation: 'inlineScript'
-    inlineScript: |
-      echo "Installing Terraform..."
-      curl -s https://raw.githubusercontent.com/hashicorp/terraform-installer/master/install.sh | bash
-- checkout: self
+- script: |
+    echo "Logging into Azure..."
+    az login --service-principal -u $(ARM_CLIENT_ID) -p $(ARM_CLIENT_SECRET) --tenant $(ARM_TENANT_ID)
 
-- task: TerraformInstaller@0
-  inputs:
-    terraformVersion: 'latest'
+    echo "Setting subscription..."
+    az account set --subscription $(ARM_SUBSCRIPTION_ID)
 
-- task: TerraformTaskV2@2
-  inputs:
-    command: 'init'
-    workingDirectory: '$(System.DefaultWorkingDirectory)'
+    echo "Installing Terraform..."
+    curl -s https://raw.githubusercontent.com/hashicorp/terraform-installer/master/install.sh | bash
 
-- task: TerraformTaskV2@2
-  inputs:
-    command: 'plan'
-    workingDirectory: '$(System.DefaultWorkingDirectory)'
-    environmentServiceNameAzureRM: '<Azure service connection>'
+    echo "Initializing Terraform..."
+    terraform init
 
-- task: TerraformTaskV2@2
-  inputs:
-    command: 'apply'
-    workingDirectory: '$(System.DefaultWorkingDirectory)'
-    environmentServiceNameAzureRM: '<Azure service connection>'
-    commandOptions: '-auto-approve'
+    echo "Planning infrastructure changes..."
+    terraform plan
+
+    echo "Applying infrastructure changes..."
+    terraform apply -auto-approve
+  displayName: "Run Azure CLI and Terraform"

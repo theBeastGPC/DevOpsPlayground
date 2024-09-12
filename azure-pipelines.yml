@@ -1,0 +1,49 @@
+#K8s Deployment Pipeline
+# https://aka.ms/yaml
+
+trigger:
+  branches:
+    include:
+    - main
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  ARM_CLIENT_ID: $(servicePrincipalId)
+  ARM_CLIENT_SECRET: $(servicePrincipalKey)
+  ARM_SUBSCRIPTION_ID: $(subscriptionId)
+  ARM_TENANT_ID: $(tenantId)
+
+steps:
+- task: UseAzureCLI@2
+  inputs:
+    azureSubscription: '<Azure service connection>'
+    scriptType: 'bash'
+    scriptLocation: 'inlineScript'
+    inlineScript: |
+      echo "Installing Terraform..."
+      curl -s https://raw.githubusercontent.com/hashicorp/terraform-installer/master/install.sh | bash
+- checkout: self
+
+- task: TerraformInstaller@0
+  inputs:
+    terraformVersion: 'latest'
+
+- task: TerraformTaskV2@2
+  inputs:
+    command: 'init'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+- task: TerraformTaskV2@2
+  inputs:
+    command: 'plan'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+    environmentServiceNameAzureRM: '<Azure service connection>'
+
+- task: TerraformTaskV2@2
+  inputs:
+    command: 'apply'
+    workingDirectory: '$(System.DefaultWorkingDirectory)'
+    environmentServiceNameAzureRM: '<Azure service connection>'
+    commandOptions: '-auto-approve'
